@@ -1,134 +1,156 @@
-# StellarX Workshop Starter
+# StellarX NFT Marketplace
 
-A ready-to-run scaffold for the **StellarX PH workshop @ PUP QC**. It gives you a
-working Stellar app on **testnet** so you can spend the workshop bending it toward
-your own idea instead of fighting setup.
+A digital-art **NFT marketplace prototype** built for the **StellarX PH workshop
+@ PUP QC**, running on Stellar **testnet**. Artists sign up, upload their work,
+and publish it as a **fixed XLM price** or a **free claim**; everyone else browses
+the marketplace and **buys with Freighter** — a real XLM payment to the creator,
+confirmed on-chain.
 
-It covers **both** workshop tracks:
+It's built on the StellarX workshop scaffold, so the original **Stellar payments +
+Soroban** demo still ships alongside it (at `/wallet`).
 
-- **Fullstack payments** — a Next.js app: connect Freighter → fund via Friendbot →
-  view XLM/USDC balances → send a payment → confirm on-chain.
-- **Soroban smart contract** — a small Rust contract (a *Savings Goal* tracker)
-  you build, test, deploy with the Stellar CLI, and call from the same frontend.
+It covers an end-to-end product flow:
+
+- **Accounts & auth** — register / login with JWT (httpOnly cookies), profiles, and
+  a manually-linked Stellar payout wallet.
+- **Create & process** — upload art, auto-resized into display/thumbnail variants.
+- **Marketplace** — publish for XLM or free, browse a cached featured grid, view a
+  detail page, and **buy with XLM via Freighter**.
 
 ```
 .
-├── web/                      # Next.js 16 + TypeScript + Tailwind frontend
-├── contracts/savings-goal/   # Rust Soroban contract (init / contribute / get_state)
-├── scripts/                  # deploy.ps1 (Windows) / deploy.sh
-├── Cargo.toml                # Rust workspace
-└── CLAUDE.md                 # stack notes + Stellar gotchas (read this!)
+├── web/                       # Next.js 16 + TypeScript + Tailwind — the app
+│   ├── prisma/schema.prisma   # User + Artwork models (SQLite for the prototype)
+│   ├── public/uploads/        # uploaded art (local storage, git-ignored)
+│   └── src/
+│       ├── app/               # pages + /api routes (auth, users, artworks)
+│       ├── components/        # ArtworkCard, BuyArtwork, AuthShell, wallet UI…
+│       └── lib/               # auth, db, store/cache, images, payment, stellar
+├── contracts/savings-goal/    # Rust Soroban contract (powers the /wallet demo)
+├── scripts/                   # deploy.ps1 (Windows) / deploy.sh
+└── CLAUDE.md                  # stack notes + Stellar gotchas (read this!)
 ```
+
+## What's built
+
+| Area | Status |
+|---|---|
+| **Phase 1** — auth (register/login/refresh/logout), profiles, wallet linking, Redis-style cache | ✅ Done |
+| **Phase 2** — artwork drafts, image upload + processing (resize), draft management | ✅ Done |
+| **Phase 3** — publish (price/free), cached marketplace API, landing + detail, **buy with XLM** | ✅ Done |
+| **Phase 4** — mint real NFTs on a Soroban contract (token ownership, not just payment) | 🚧 Planned |
+| **Phase 5** — rate limiting, monitoring, tests, production hardening | 🚧 Planned |
+
+> **Prototype, by design.** To stay zero-setup it uses **SQLite** (not Postgres),
+> an **in-memory KV store** (not Redis), and **local disk** uploads (not S3/IPFS).
+> Each is a drop-in swap — see [Prototype substitutions](#prototype-substitutions).
+> Buying currently sends **XLM to the creator**; on-chain NFT minting is Phase 4.
+
+## How it uses Stellar
+
+Stellar is the payment rail, not decoration:
+
+- **Buying art = a real testnet XLM payment** from the buyer to the creator's linked
+  wallet, built/signed/submitted/polled via Freighter + `@stellar/stellar-sdk`
+  (`web/src/lib/payment.ts`, `web/src/components/BuyArtwork.tsx`).
+- **Creator payout wallets** are Stellar addresses linked to each account.
+- The original **Soroban Savings-Goal** contract + full wallet demo live at `/wallet`,
+  and are the foundation for Phase 4 minting.
 
 ## Prerequisites
 
 From the [workshop setup checklist](https://stellar-pup-qc-may-2026-checklist.vercel.app/):
 
-- **Node.js 20+** and **npm** — for the frontend.
+- **Node.js 20+** and **npm** — for the app.
 - **Freighter** browser extension — create a wallet, switch it to **Test Net**.
-- For the contract track: **Rust**, the `wasm32v1-none` target, and the **Stellar CLI**.
+  Fund it via Friendbot to buy/sell (you get ~10,000 test XLM).
+- *(Optional)* **Rust** + `wasm32v1-none` + the **Stellar CLI** — only to deploy the
+  Soroban contract behind the `/wallet` demo. The marketplace runs without them.
 
-You can run the **payments demo with just Node + Freighter** — Rust/CLI are only
-needed to deploy the Soroban contract.
-
-### Install the contract toolchain (Windows)
-
-Install Rust and the Stellar CLI:
-
-```powershell
-winget install --id Rustlang.Rustup -e --accept-source-agreements --accept-package-agreements
-winget install --id Stellar.StellarCLI -e --accept-source-agreements --accept-package-agreements
-```
-
-Then **open a new terminal** (so `cargo`/`stellar` land on PATH) and give Rust a
-working linker — pick one:
-
-**Easiest — GNU toolchain** (no admin, no large download):
-
-```powershell
-rustup default stable-x86_64-pc-windows-gnu
-rustup target add wasm32v1-none
-```
-
-**Or MSVC** (matches Stellar's docs): install the **Visual C++ Build Tools** (the
-"Desktop development with C++" workload), then:
-
-```powershell
-rustup target add wasm32v1-none
-```
-
-> If `cargo` fails with *"linker `link.exe` not found"*, you skipped the step
-> above — use the GNU toolchain or install the Build Tools.
-
-On macOS/Linux: install Rust from <https://rustup.rs>, run
-`rustup target add wasm32v1-none`, and install the Stellar CLI
-(`brew install stellar-cli`).
-
-## 1. Run the frontend (the part that demos immediately)
+## 1. Run the app
 
 ```powershell
 cd web
-npm install        # already run if you scaffolded via this repo
+npm install          # installs deps + generates the Prisma client
+npm run db:push      # creates the SQLite database (web/dev.db)
 npm run dev
 ```
 
-Open <http://localhost:3000>, then:
+`web/.env` ships with working defaults (see `web/.env.example`). Open
+<http://localhost:3000>.
 
-1. **Connect Freighter** (approve in the extension; make sure it's on Test Net).
-2. **Fund with Friendbot** — your XLM balance jumps to ~10,000.
-3. **Send a payment** to another *existing, funded* testnet account
-   (create one at <https://laboratory.stellar.org/#account-creator?network=test>).
-4. Watch the status go Building → Signing → Submitting → Confirming → Success,
-   then open the **Stellar Expert** link to see it on-chain.
+### Try the full flow
 
-`web/.env.local` is pre-filled with testnet config. `NEXT_PUBLIC_CONTRACT_ID` is
-left empty — the Savings Goal panel shows deploy instructions until you set it.
+1. **Sign up** (`/signup`) → you land on your **dashboard** (`/profile`).
+2. **Link a wallet** — paste your Stellar **public key** (`G…`) on the dashboard.
+   Needed to *sell* for XLM (free claims don't require it).
+3. **Open Studio** (`/studio`) → add a title + image → **Create & upload**
+   (the image is resized to display/thumbnail variants).
+4. **Publish** — set a **price in XLM** or tick **Free claim**.
+5. **Browse** — your piece appears in **Featured artworks** on the landing page,
+   visible to everyone.
+6. **Buy** — open a piece (`/art/[id]`) → **Buy for X XLM** → confirm in Freighter →
+   the creator is paid on testnet, with a Stellar Expert link to the transaction.
 
-## 2. Build, test & deploy the Soroban contract
+## 2. Routes & API
+
+**Pages**
+
+| Route | Purpose |
+|---|---|
+| `/` | Landing + live featured marketplace grid |
+| `/signup`, `/login` | Auth |
+| `/profile` | Dashboard — identity + link/unlink Stellar wallet |
+| `/studio` | Create, upload, manage, and publish your artworks |
+| `/art/[id]` | Public artwork detail + buy/claim |
+| `/wallet` | Original Stellar payments + Soroban demo |
+
+**API** (`web/src/app/api/`)
+
+| Endpoint | Purpose |
+|---|---|
+| `POST /api/auth/{register,login,refresh,logout}` | JWT auth |
+| `GET·PATCH /api/users/me` | Profile + link/unlink wallet |
+| `GET·POST /api/artworks` | List own / create draft |
+| `POST /api/artworks/:id/upload` | Multipart image upload + processing |
+| `GET·PUT·DELETE /api/artworks/:id` | Read / update / delete |
+| `PUT /api/artworks/:id/publish` | Publish for XLM or free |
+| `GET /api/artworks/public` | Paginated marketplace list (cached 5 min) |
+| `GET /api/health` | DB + store liveness check |
+
+## 3. The Soroban contract (optional, for `/wallet`)
 
 ```powershell
 # from the repo root
-cargo test                 # runs the contract unit tests (no network needed)
-
-# deploy to testnet + auto-wire the contract ID into web/.env.local
-.\scripts\deploy.ps1       # macOS/Linux:  ./scripts/deploy.sh
+cargo test                 # contract unit tests (no network needed)
+.\scripts\deploy.ps1       # deploy to testnet + wire NEXT_PUBLIC_CONTRACT_ID
 ```
 
-The deploy script will: create+fund a testnet identity (if needed), run
-`stellar contract build`, deploy, initialise the goal (target `1000`), and write
-`NEXT_PUBLIC_CONTRACT_ID` into `web/.env.local`. **Restart `npm run dev`** and the
-**Savings Goal** panel goes live: it reads on-chain progress and lets a connected
-wallet `contribute` (a real signed Soroban transaction).
+The deploy script creates+funds a testnet identity, builds, deploys, runs `init`,
+and writes `NEXT_PUBLIC_CONTRACT_ID` into `web/.env.local`. Restart the dev server
+and the **Savings Goal** panel at `/wallet` goes live. See **CLAUDE.md** for the
+contract API and Stellar gotchas.
 
-### The contract (`contracts/savings-goal/src/lib.rs`)
+## Prototype substitutions
 
-| Function | Purpose |
+Everything below is a one-step swap to "real" infra later:
+
+| Prototype | Production swap |
 |---|---|
-| `init(target: i128)` | Set the savings target (once). |
-| `contribute(amount: i128) -> i128` | Add to the saved total; returns the new total. |
-| `get_state() -> State` | Read `{ saved, target }`. |
+| **SQLite** (`provider = "sqlite"`) | Change provider + `DATABASE_URL` to PostgreSQL |
+| **In-memory KV** store | Set `REDIS_URL` → it uses ioredis automatically |
+| **Local `public/uploads/`** + inline resize | S3/R2 signed URLs + a BullMQ worker |
+| **Buy = XLM payment** | Mint/transfer a real NFT via a Soroban contract (Phase 4) |
 
-It uses plain integer state (no token transfers) so it's bulletproof in a live
-demo. To make it move real money, swap `contribute` to call the XLM/USDC SAC
-`transfer` and store per-user contributions — see CLAUDE.md for the SAC addresses.
-
-## 3. Make it your idea
-
-This is your *starting point*, not the answer. Pick an idea + track from the
-workshop's 300-ideas list (Philippines remittance / payments / financial
-inclusion themes score well), then reshape the components and the contract.
-Good extension paths: transaction history from Horizon, USDC trustline + send,
-a swap via Soroswap, a price feed via Reflector.
-
-For a fully worked example built on this scaffold, see the **Paluwagan** app in
-`..\Stellar-Workshop-PUP-May-2026-EXAMPLE`.
+Config lives in `web/.env` (`DATABASE_URL`, `JWT_*_SECRET`, token TTLs, `REDIS_URL`).
 
 ## Troubleshooting
 
-- **Freighter "not detected"** — install it, reload the page, and confirm it's unlocked.
-- **Payment fails `op_no_destination`** — fund the destination account first.
-- **`tx_bad_auth`** — wrong network passphrase; this app uses `Networks.TESTNET`.
-- **Contract panel can't read state** — make sure you deployed *and* ran `init`,
-  and that `NEXT_PUBLIC_CONTRACT_ID` is set, then restart the dev server.
+- **Freighter "not detected"** — install it, reload, confirm it's unlocked and on **Test Net**.
+- **Buy fails `op_no_destination`** — the creator's wallet isn't a funded testnet account; fund it via Friendbot.
+- **Can't set a price when publishing** — link a wallet on your dashboard first (free claims work without one).
+- **`tx_bad_auth`** — wrong network passphrase; the app uses `Networks.TESTNET`.
+- **Logged out after restarting `npm run dev`** — refresh tokens live in the in-memory store; set `REDIS_URL` to persist sessions.
+- **Images not showing** — uploads are written to `web/public/uploads/`; they persist across restarts but are git-ignored.
 
 See **CLAUDE.md** for the full list of Stellar gotchas.
