@@ -5,11 +5,18 @@
   --foreground: #171717;
 }
 
+/* --- Design tokens --- */
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+
+  /* Brand palette for the NFT app (violet → cyan) */
+  --color-brand: #7c5cff;
+  --color-brand-600: #6a45ff;
+  --color-accent: #22d3ee;
+  --color-ink: #0b0b14;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -23,4 +30,70 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+/* --- App theme utilities (used by the new NFT pages) --- */
+
+/* Dark animated gradient backdrop for auth/marketplace pages. */
+.app-gradient {
+  background:
+    radial-gradient(60% 50% at 20% 10%, rgba(124, 92, 255, 0.35) 0%, transparent 60%),
+    radial-gradient(50% 50% at 85% 20%, rgba(34, 211, 238, 0.25) 0%, transparent 55%),
+    radial-gradient(60% 60% at 50% 100%, rgba(124, 92, 255, 0.2) 0%, transparent 60%),
+    var(--color-ink);
+  background-attachment: fixed;
+}
+
+/* Frosted-glass card. */
+.glass-card {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: 0 10px 40px -12px rgba(0, 0, 0, 0.5);
+}
+
+/* Glass input field. */
+.glass-input {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: #f5f5f7;
+}
+.glass-input::placeholder {
+  color: rgba(245, 245, 247, 0.4);
+}
+.glass-input:focus {
+  outline: none;
+  border-color: var(--color-brand);
+  box-shadow: 0 0 0 3px rgba(124, 92, 255, 0.25);
+}
+
+/* Landing-page animations (no JS deps). */
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-22px); }
+}
+.animate-float { animation: float 9s ease-in-out infinite; }
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: none; }
+}
+.animate-fade-up { animation: fadeUp 0.7s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+/* Primary gradient button. */
+.btn-brand {
+  background-image: linear-gradient(135deg, var(--color-brand), var(--color-accent));
+  color: white;
+  transition: filter 0.15s ease, transform 0.05s ease;
+}
+.btn-brand:hover {
+  filter: brightness(1.08);
+}
+.btn-brand:active {
+  transform: translateY(1px);
+}
+.btn-brand:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }

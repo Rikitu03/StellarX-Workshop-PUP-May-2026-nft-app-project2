@@ -1,0 +1,53 @@
+// Prisma schema — Phase 1 (auth) + Phase 2 (artwork) tables.
+//
+// PROTOTYPE NOTE: this uses SQLite so the app runs with zero database setup.
+// To move to PostgreSQL later, change `provider` to "postgresql" and point
+// DATABASE_URL at your Postgres instance — the models below are written to be
+// portable (status/imageKeys/metadataJson are plain strings, no enums/arrays,
+// since SQLite doesn't support those).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  passwordHash  String
+  name          String?
+  avatarUrl     String?
+  walletAddress String?
+  createdAt     DateTime  @default(now())
+
+  artworks      Artwork[]
+}
+
+model Artwork {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  title        String
+  description  String?
+  // status: 'draft' | 'processing' | 'ready' | 'published'
+  status       String   @default("draft")
+  price        Float?
+  isFree       Boolean  @default(false)
+  // imageKeys: JSON-encoded array of storage keys (SQLite has no array type)
+  imageKeys    String?
+  ipfsHash     String?
+  // metadataJson: JSON-encoded NFT metadata blob
+  metadataJson String?
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@index([price])
+}
